@@ -207,12 +207,14 @@ flowchart TB
 
 > 📱 扫码加入微信群或飞书群，获取最新模型上线通知、优惠活动与技术交流。
 
-![输入图片说明](wechat-qrcode.jpg)
-![输入图片说明](feishu-qrcode.jpg)
+<p align="center">
+  <img src="./screenshots/wechat-qrcode.jpg" alt="微信群聊二维码" width="200" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./screenshots/feishu-qrcode.jpg" alt="飞书群聊二维码" width="200" />
+  <br/>
   <em>▲ 左：微信群 &nbsp;|&nbsp; 右：飞书群（如二维码过期请添加微信 zwl568633995）</em>
 </p>
 ---
-
 ## 📖 文档
 
 - [API 文档](backend/API_DOCS.md) — 后端接口详细说明
