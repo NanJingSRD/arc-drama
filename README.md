@@ -204,7 +204,9 @@ flowchart TB
 ---
 
 ## 交流群
-![输入图片说明](e87ee4dfa312315b5edc181ba7f529ac.jpg)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Web%20%7C%20API-brightgreen)](https://aiplatform.njsrd.com/)
+[![Models](https://img.shields.io/badge/models-16+-orange)]()
 ---
 
 ## 📖 文档
