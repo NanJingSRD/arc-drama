@@ -10,8 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-<video src="https://github.com/NanJingSRD/arc-drama/raw/master/screenshots/demo.mp4" controls width="100%"></video>
-
+<video src="https://github.com/user-attachments/assets/https://github.com/NanJingSRD/arc-drama/blob/master/screenshots/demo.mp4" controls width="100%"></video>
 
 
 ---
