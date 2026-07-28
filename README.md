@@ -10,7 +10,8 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-![输入图片说明](e171daba9761d64a3ceec6bd19748323.png) 
+<video src="screenshots/7月13日%20%283%29.mp4" controls width="100%"></video>
+
 
 ---
 ### 🧩 提示词工厂
