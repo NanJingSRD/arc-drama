@@ -1,0 +1,21 @@
+{
+    "name": "星帧漫影AI短剧协作平台",
+    "short_name": "星帧漫影",
+    "icons": [
+        {
+            "src": "/srd-logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/srd-logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "theme_color": "#06080f",
+    "background_color": "#06080f",
+    "display": "standalone"
+}

@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# 前端（后端镜像不需要）
+frontend/
+
+# Python 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+
+# Python 缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 测试和开发文件
+tests/
+test/
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志
+logs/
+*.log
+
+# 项目数据（运行时通过卷挂载，不需要打包到镜像）
+projects/
+!projects/.gitkeep
+
+# 文档
+docs/
+*.md
+!README.md
+
+# CI/CD 配置
+.github/
+Jenkinsfile
+
+# Docker 相关
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 其他不需要的文件
+*.zip
+*.tar.gz
+*.rar
+
+# 说明文件
+说明/

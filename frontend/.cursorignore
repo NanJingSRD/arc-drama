@@ -1,0 +1,14 @@
+# Dependencies & build artifacts (reduce AI indexing noise)
+node_modules/
+dist/
+.vite/
+
+# Lock files (large, low signal for code search)
+pnpm-lock.yaml
+
+# Test output
+coverage/
+
+# OS & IDE
+.DS_Store
+.idea/

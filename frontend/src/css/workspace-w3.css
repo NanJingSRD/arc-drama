@@ -1,0 +1,132 @@
+/* workspace-w3.css — 工作空间 Web3 主题作用域（挂载于 body.workspace-w3） */
+@reference "../index.css";
+
+/*
+ * 覆盖 accent token：cyan → indigo 渐变体系。
+ * 公共页不挂载 .workspace-w3，仍使用 @theme 默认紫色。
+ */
+body.workspace-w3 {
+  --color-accent: #6366f1;
+  --color-accent-2: #22d3ee;
+  --color-accent-soft: rgba(34, 211, 238, 0.28);
+  --color-accent-dim: rgba(99, 102, 241, 0.14);
+  --color-accent-glow: rgba(99, 102, 241, 0.55);
+  --shadow-glow: 0 0 0 1px rgba(34, 211, 238, 0.28), 0 18px 40px oklch(0 0 0 / 0.45);
+  --color-neon-500: #6366f1;
+  --color-neon-400: #818cf8;
+  --color-neon-300: #22d3ee;
+  --color-accent-start: #22d3ee;
+  --color-accent-end: #6366f1;
+
+  /* darkroom ACCENT_BUTTON_STYLE 在此 scope 内走 Web3 渐变 + 浅色字 */
+  --w3-btn-text: #f8fafc;
+  --w3-btn-gradient: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%);
+  --w3-btn-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 32px -4px rgba(99, 102, 241, 0.65),
+    0 0 0 1px rgba(34, 211, 238, 0.22);
+}
+
+/* PrimaryButton / arc-btn-primary — accent 默认态 */
+body.workspace-w3 .arc-btn-primary:not([data-tone="warm"]):not([data-tone="danger"]) {
+  color: var(--w3-btn-text);
+  background: var(--w3-btn-gradient);
+  box-shadow: var(--w3-btn-shadow);
+  border-radius: 7px;
+}
+
+/* studio.css 工具类 */
+body.workspace-w3 .accent-gradient {
+  color: var(--w3-btn-text);
+  background: var(--w3-btn-gradient);
+  box-shadow: var(--w3-btn-shadow);
+}
+
+body.workspace-w3 .accent-gradient-text {
+  color: #22d3ee;
+  text-shadow: 0 0 28px rgba(34, 211, 238, 0.45);
+}
+
+/* focus ring — cyan 高亮 */
+body.workspace-w3 .focus-ring:focus-visible {
+  --tw-ring-color: #22d3ee;
+}
+
+/* 画布 / 侧栏内 accent 渐变 CTA（inline style） */
+body.workspace-w3 button[style*="linear-gradient(180deg, var(--color-accent-2)"],
+body.workspace-w3 button[style*="linear-gradient(135deg, var(--color-accent-2)"] {
+  color: var(--w3-btn-text) !important;
+  background: var(--w3-btn-gradient) !important;
+  box-shadow: var(--w3-btn-shadow) !important;
+}
+
+/* Tailwind arbitrary 渐变 CTA class */
+body.workspace-w3 [class*="[background:linear-gradient(180deg,var(--color-accent-2)"],
+body.workspace-w3 [class*="[background:linear-gradient(135deg,var(--color-accent-2)"] {
+  color: var(--w3-btn-text) !important;
+  background: var(--w3-btn-gradient) !important;
+  box-shadow: var(--w3-btn-shadow) !important;
+}
+
+/* 非 button 的 accent 渐变 badge（如 segment 编号） */
+body.workspace-w3 [style*="linear-gradient(180deg, var(--color-accent-2)"][style*="oklch(0.14"] {
+  color: var(--w3-btn-text) !important;
+  background: var(--w3-btn-gradient) !important;
+  box-shadow: var(--w3-btn-shadow) !important;
+}
+
+/* 选中 / 激活态边框与 glow */
+body.workspace-w3 .border-accent\/45,
+body.workspace-w3 .border-accent\/55 {
+  border-color: rgba(34, 211, 238, 0.45) !important;
+}
+
+body.workspace-w3 .bg-accent-dim {
+  background-color: rgba(99, 102, 241, 0.14) !important;
+}
+
+body.workspace-w3 .text-accent-2 {
+  color: #22d3ee !important;
+}
+
+@keyframes w3v2-progress-active-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 6px rgba(56, 189, 248, 0.55),
+      0 0 12px rgba(56, 189, 248, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 10px rgba(56, 189, 248, 0.95),
+      0 0 20px rgba(56, 189, 248, 0.65),
+      0 0 32px rgba(56, 189, 248, 0.28);
+  }
+}
+
+@keyframes w3v2-progress-active-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  75%,
+  100% {
+    transform: scale(1.75);
+    opacity: 0;
+  }
+}
+
+.w3v2-progress-active-node {
+  animation: w3v2-progress-active-glow 2.2s ease-in-out infinite;
+}
+
+.w3v2-progress-active-ring {
+  animation: w3v2-progress-active-ring 2.2s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w3v2-progress-active-node,
+  .w3v2-progress-active-ring {
+    animation: none;
+  }
+}

@@ -1,0 +1,230 @@
+/**
+ * Project-related type definitions.
+ *
+ * Maps to backend models in:
+ * - lib/project_manager.py (ProjectOverview, project.json structure)
+ * - lib/status_calculator.py (ProjectStatus, EpisodeMeta computed fields)
+ * - server/routers/projects.py (ProjectSummary list response)
+ */
+
+export interface ProjectOverview {
+  synopsis: string;
+  genre: string;
+  theme: string;
+  world_setting: string;
+  generated_at?: string;
+}
+
+export type AssetSheetStatus = "draft" | "generated" | "failed";
+
+/** 资产图生成提示词模板（GET /assets.prompt_template） */
+export type AssetPromptTemplate = Record<string, string>;
+
+export interface Character {
+  description: string;
+  character_sheet?: string;
+  voice_style?: string;
+  reference_image?: string;
+  /** 工作空间 2.0 资产状态：draft / generated / failed */
+  status?: AssetSheetStatus;
+  prompt_template?: AssetPromptTemplate;
+}
+
+export interface Scene {
+  description: string;
+  scene_sheet?: string;
+  status?: AssetSheetStatus;
+  prompt_template?: AssetPromptTemplate;
+}
+
+export interface Prop {
+  description: string;
+  prop_sheet?: string;
+  status?: AssetSheetStatus;
+  prompt_template?: AssetPromptTemplate;
+}
+
+export interface Product {
+  description: string;
+  /** 标准多角度产品参考图（可选，生成/上传后回写）。 */
+  product_sheet?: string;
+  /** 品牌要素自由文本。 */
+  brand?: string;
+  /** 用户上传的产品原图路径列表（保真验收锚点，系统级字段）。 */
+  reference_images?: string[];
+  /** 卖点列表（agent 起草、用户可改）。 */
+  selling_points?: string[];
+}
+
+export interface AspectRatio {
+  characters?: string;
+  scenes?: string;
+  props?: string;
+  storyboard?: string;
+  video?: string;
+}
+
+export interface ProgressCategory {
+  total: number;
+  completed: number;
+}
+
+export interface EpisodesSummary {
+  total: number;
+  scripted: number;
+  in_production: number;
+  completed: number;
+}
+
+export const PHASE_ORDER = [
+  "setup",
+  "worldbuilding",
+  "scripting",
+  "production",
+  "completed",
+] as const;
+
+export type Phase = (typeof PHASE_ORDER)[number];
+
+/** Injected by StatusCalculator.calculate_project_status at read time */
+export interface ProjectStatus {
+  current_phase: Phase;
+  phase_progress: number;
+  characters: ProgressCategory;
+  scenes: ProgressCategory;
+  props: ProgressCategory;
+  episodes_summary: EpisodesSummary;
+}
+
+export interface EpisodeMeta {
+  episode: number;
+  title: string;
+  script_file: string;
+  /** Injected by StatusCalculator at read time */
+  scenes_count?: number;
+  /** Injected by StatusCalculator at read time */
+  script_status?: "none" | "segmented" | "generated";
+  /** Injected by StatusCalculator at read time */
+  status?: "draft" | "scripted" | "in_production" | "completed" | "missing";
+  /** Injected by StatusCalculator at read time */
+  duration_seconds?: number;
+  /** Injected by StatusCalculator at read time */
+  storyboards?: ProgressCategory;
+  /** Injected by StatusCalculator at read time */
+  videos?: ProgressCategory;
+  /** Injected by StatusCalculator at read time (reference_video mode only) */
+  units_count?: number;
+  /**
+   * Optional episode-level override; falls back to project.generation_mode.
+   * Never "single" — legacy value only exists at project level.
+   */
+  generation_mode?: "storyboard" | "grid" | "reference_video";
+}
+
+export interface ModelSettingEntry {
+  resolution?: string | null;
+}
+
+export interface ProjectData {
+  /** 系统内部项目标识（URL / 存储路径），创建后不可变 */
+  project_id?: string;
+  title: string;
+  content_mode: "narration" | "drama" | "ad";
+  /** 源文件性质：novel（默认，AI 改编）/ screenplay（成品剧本，逐字提取）。创建即定、不可变。 */
+  source_kind?: "novel" | "screenplay";
+  /** 剧集模式：AI 改写 / 原始剧本 */
+  episode_rewrite_mode?: "ai_rewrite" | "original";
+  style: string;
+  style_template_id?: string | null;
+  style_image?: string;
+  style_description?: string;
+  overview?: ProjectOverview;
+  aspect_ratio?: string | AspectRatio;  // 新项目为 string，旧项目可能为 dict
+  default_duration?: number | null;     // 新增
+  /** 仅 ad：目标总时长（秒）。 */
+  target_duration?: number;
+  /** 仅 ad：创作诉求短文本（可空）。 */
+  brief?: string;
+  schema_version?: number;
+  episodes: EpisodeMeta[];
+  characters: Record<string, Character>;
+  scenes?: Record<string, Scene>;
+  props?: Record<string, Prop>;
+  /** 产品资产（广告/短片项目使用，v1 单产品设定，字段形态为映射）。 */
+  products?: Record<string, Product>;
+  /** Injected by StatusCalculator.enrich_project at read time */
+  status?: ProjectStatus;
+  video_backend?: string | null;
+  image_backend?: string | null;
+  image_provider_t2i?: string | null;
+  image_provider_i2i?: string | null;
+  /** Canonical values: storyboard | grid | reference_video. "single" is legacy-only. */
+  generation_mode?: "storyboard" | "grid" | "reference_video" | "single";
+  video_generate_audio?: boolean | null;
+  /** 旁白配音（TTS）项目级覆盖：音频后端 / 音色 / 语速，留空即跟随全局默认 */
+  audio_backend?: string | null;
+  narration_voice?: string | null;
+  narration_speed?: number | null;
+  text_backend_script?: string | null;
+  text_backend_overview?: string | null;
+  text_backend_style?: string | null;
+  model_settings?: Record<string, ModelSettingEntry>;
+  /** Legacy field: keyed by model_id only (before composite key refactor). Read-only at UI layer. */
+  video_model_settings?: Record<string, { resolution?: string | null }>;
+  metadata?: {
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+/**
+ * Summary shape returned by GET /api/v1/projects (list endpoint).
+ *
+ * Note: `status` may be an empty object `{}` when the project
+ * has no project.json or encounters an error during loading.
+ */
+export interface ProjectSummary {
+  /** 系统内部项目标识 */
+  project_id?: string;
+  name: string;
+  title: string;
+  style: string;
+  style_template_id?: string | null;
+  style_image?: string | null;
+  thumbnail: string | null;
+  status: ProjectStatus | Record<string, never>;
+}
+
+export type ImportConflictPolicy = "prompt" | "rename" | "overwrite";
+
+export interface ArchiveDiagnostic {
+  code: string;
+  message: string;
+  location?: string;
+}
+
+export interface ImportSuccessDiagnostics {
+  auto_fixed: ArchiveDiagnostic[];
+  warnings: ArchiveDiagnostic[];
+}
+
+export interface ImportFailureDiagnostics {
+  blocking: ArchiveDiagnostic[];
+  auto_fixable: ArchiveDiagnostic[];
+  warnings: ArchiveDiagnostic[];
+}
+
+export interface ExportDiagnostics {
+  blocking: ArchiveDiagnostic[];
+  auto_fixed: ArchiveDiagnostic[];
+  warnings: ArchiveDiagnostic[];
+}
+
+export interface ImportProjectResponse {
+  success: boolean;
+  project_name: string;
+  project: ProjectData;
+  warnings: string[];
+  conflict_resolution: "none" | "renamed" | "overwritten";
+  diagnostics: ImportSuccessDiagnostics;
+}

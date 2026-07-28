@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-anidrama"
+version = "0.1.0"
+description = "AI Anime Drama Generation Platform - Convert novels/scripts to animated drama"
+requires-python = ">=3.11"
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.33.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.40",
+    "aiosqlite>=0.20.0",
+    "asyncpg>=0.29.0",
+    "httpx>=0.27.0",
+    "python-jose>=3.3.0",
+    "passlib>=1.7.4",
+    "python-multipart>=0.0.12",
+    "pillow>=11.0.0",
+    "ffmpeg-python>=0.2.0",
+    "python-dotenv>=1.0.1",
+    "structlog>=24.4.0",
+    "tenacity>=8.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.6.0",
+    "basedpyright>=1.15.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "S", "T20", "UP"]
+ignore = [
+    "E501",
+    "W503",
+    "B008",
+]
+
+[tool.setuptools]
+package-dir = {"ai_anidrama" = "."}
+packages = ["ai_anidrama", "ai_anidrama.api", "ai_anidrama.core", "ai_anidrama.domain", "ai_anidrama.domain.entities", "ai_anidrama.domain.repositories", "ai_anidrama.domain.services", "ai_anidrama.application", "ai_anidrama.application.dtos", "ai_anidrama.application.services", "ai_anidrama.infrastructure", "ai_anidrama.infrastructure.config", "ai_anidrama.infrastructure.persistence", "ai_anidrama.infrastructure.persistence.file_storage", "ai_anidrama.infrastructure.persistence.repositories", "ai_anidrama.infrastructure.persistence.sqlalchemy", "ai_anidrama.infrastructure.external", "ai_anidrama.infrastructure.external.queue", "ai_anidrama.infrastructure.external.providers"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=ai_anidrama --cov-report=term-missing"

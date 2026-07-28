@@ -1,0 +1,253 @@
+import { useState } from "react";
+import { Sparkles, ImageIcon, Film, Info } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { API } from "@/api";
+import { useProjectsStore } from "@/stores/projects-store";
+import { AspectFrame } from "@/components/ui/AspectFrame";
+import { ImageFlipReveal } from "@/components/ui/ImageFlipReveal";
+import { PreviewableImageFrame } from "@/components/ui/PreviewableImageFrame";
+import {
+  UPLOAD_IMAGE_ACCEPT,
+  UPLOAD_VIDEO_ACCEPT,
+  UploadIconButton,
+} from "@/components/ui/UploadIconButton";
+import { formatCost } from "@/utils/cost-format";
+import type { CostBreakdown } from "@/types";
+import { VersionTimeMachine } from "./VersionTimeMachine";
+import { CurlInfoDialog } from "./CurlInfoDialog";
+
+type MediaKind = "storyboard" | "video";
+
+interface MediaCardProps {
+  kind: MediaKind;
+  projectName: string;
+  segmentId: string;
+  /** 资产相对路径，如 storyboards/E1S2_v1.png */
+  assetPath: string | null;
+  /** 视频海报缩略图（仅 kind=video 用） */
+  posterPath?: string | null;
+  /** 渲染比例 */
+  aspectRatio: "9:16" | "16:9";
+  /** 是否在 grid 模式下隐藏单独生成按钮 */
+  hideGenerateButton?: boolean;
+  /** 生成按钮是否禁用（视频生成需要先有分镜图） */
+  generateDisabled?: boolean;
+  /** 自定义禁用 tooltip，未提供时使用默认（"分镜图未生成"）的视频禁用提示 */
+  generateDisabledHint?: string;
+  /** 进行中状态 */
+  generating?: boolean;
+  /** 估算费用（按币种 breakdown，例如 {USD: 0.12} 或 {CNY: 5.25}） */
+  estimatedCost?: CostBreakdown;
+  /** 触发生成 */
+  onGenerate?: () => void;
+  /** 版本恢复回调 */
+  onRestore?: () => Promise<void> | void;
+  /** 自主上传回调（替换该镜头的分镜图/视频）；未提供时不显示上传入口 */
+  onUpload?: (file: File) => Promise<void> | void;
+  /** 本卡片的上传请求进行中 */
+  uploading?: boolean;
+  /** 其他上传进行中等需要互斥的场景：禁用上传入口但不显示 spinner */
+  uploadDisabled?: boolean;
+  /** 提示词（用于生成 curl 命令） */
+  prompt?: string | Record<string, unknown> | unknown;
+  /** 剧本文件名（用于生成 curl 命令） */
+  scriptFile?: string;
+  /** 视频时长（仅 kind=video 用，用于生成 curl 命令） */
+  durationSeconds?: number;
+}
+
+const UPLOAD_ACCEPT: Record<MediaKind, string> = {
+  storyboard: UPLOAD_IMAGE_ACCEPT,
+  video: UPLOAD_VIDEO_ACCEPT,
+};
+
+export function MediaCard({
+  kind,
+  projectName,
+  segmentId,
+  assetPath,
+  posterPath,
+  aspectRatio,
+  hideGenerateButton,
+  generateDisabled,
+  generateDisabledHint,
+  generating,
+  estimatedCost,
+  onGenerate,
+  onRestore,
+  onUpload,
+  uploading,
+  uploadDisabled,
+  prompt,
+  scriptFile,
+  durationSeconds = 4,
+}: MediaCardProps) {
+  const { t } = useTranslation("dashboard");
+  const [curlDialogOpen, setCurlDialogOpen] = useState(false);
+
+  const assetFp = useProjectsStore((s) =>
+    assetPath ? s.getAssetFingerprint(assetPath) : null,
+  );
+  const posterFp = useProjectsStore((s) =>
+    posterPath ? s.getAssetFingerprint(posterPath) : null,
+  );
+  const assetUrl = assetPath ? API.getFileUrl(projectName, assetPath, assetFp) : null;
+  const posterUrl = posterPath
+    ? API.getFileUrl(projectName, posterPath, posterFp)
+    : null;
+
+  const Icon = kind === "storyboard" ? ImageIcon : Film;
+  const title =
+    kind === "storyboard" ? t("media_storyboard_title") : t("media_video_title");
+  const generateLabel =
+    kind === "storyboard"
+      ? assetPath
+        ? t("media_regenerate_storyboard")
+        : t("media_generate_storyboard")
+      : assetPath
+        ? t("media_regenerate_video")
+        : t("media_generate_video");
+  const resourceType: "storyboards" | "videos" =
+    kind === "storyboard" ? "storyboards" : "videos";
+
+  const canShowCurl = assetUrl && prompt !== undefined && prompt !== null && scriptFile;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-2 flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5" style={{ color: "var(--color-text-3)" }} />
+        <span
+          className="text-[12px] font-semibold"
+          style={{ color: "var(--color-text-2)" }}
+        >
+          {title}
+        </span>
+        <span className="flex-1" />
+        {canShowCurl && (
+          <button
+            type="button"
+            onClick={() => setCurlDialogOpen(true)}
+            title={t("curl_dialog_show_info")}
+            className="focus-ring grid h-5 w-5 place-items-center rounded transition-colors hover:bg-[oklch(1_0_0_/_0.05)]"
+            style={{ color: "var(--color-text-3)" }}
+          >
+            <Info className="h-3 w-3" />
+          </button>
+        )}
+        {onUpload && (
+          <UploadIconButton
+            accept={UPLOAD_ACCEPT[kind]}
+            label={
+              kind === "storyboard"
+                ? t("media_upload_storyboard")
+                : t("media_upload_video")
+            }
+            busy={uploading}
+            disabled={generating || uploadDisabled}
+            onSelect={(f) => void onUpload(f)}
+          />
+        )}
+        <VersionTimeMachine
+          projectName={projectName}
+          resourceType={resourceType}
+          resourceId={segmentId}
+          onRestore={onRestore}
+        />
+      </div>
+
+      {/* Media */}
+      {assetUrl ? (
+        kind === "storyboard" ? (
+          <PreviewableImageFrame src={assetUrl} alt={`${segmentId} ${title}`}>
+            <AspectFrame ratio={aspectRatio}>
+              <ImageFlipReveal
+                src={assetUrl}
+                alt={`${segmentId} ${title}`}
+                loading="lazy"
+                className="h-full w-full object-cover"
+                fallback={null}
+              />
+            </AspectFrame>
+          </PreviewableImageFrame>
+        ) : (
+          <div
+            className="overflow-hidden rounded-[10px]"
+            style={{
+              boxShadow:
+                "0 16px 40px -16px oklch(0 0 0 / 0.7), 0 0 0 1px var(--color-hairline)",
+            }}
+          >
+            <AspectFrame ratio={aspectRatio}>
+              {/* eslint-disable-next-line jsx-a11y/media-has-caption -- 生成式预览视频暂无字幕源 */}
+              <video
+                src={assetUrl}
+                poster={posterUrl ?? undefined}
+                controls
+                playsInline
+                // object-contain：卡片内容器比例一致时铺满，全屏到 16:9 屏幕时
+                // 9:16 视频会带左右黑边，避免被裁剪。
+                className="h-full w-full object-contain"
+                preload="metadata"
+              />
+            </AspectFrame>
+          </div>
+        )
+      ) : (
+        <AspectFrame ratio={aspectRatio}>
+          <div
+            className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-[10px]"
+            style={{
+              border: "1px dashed var(--color-hairline)",
+              background: "oklch(0.18 0.010 265 / 0.4)",
+              color: "var(--color-text-4)",
+            }}
+          >
+            <Icon className="h-5 w-5" />
+            <span className="text-[11.5px]">{t("media_not_generated")}</span>
+          </div>
+        </AspectFrame>
+      )}
+
+      {/* Generate CTA */}
+      {!hideGenerateButton && onGenerate && (
+        <button
+          type="button"
+          onClick={onGenerate}
+          disabled={generateDisabled || generating}
+          title={
+            generateDisabled
+              ? (generateDisabledHint ?? t("media_generate_video_disabled_hint"))
+              : undefined
+          }
+          className="mt-2.5 inline-flex w-full items-center justify-center gap-1.5 rounded-[10px] px-3.5 py-2.5 text-[13px] font-semibold transition-opacity focus-ring disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            color: "oklch(0.14 0 0)",
+            background: "linear-gradient(180deg, var(--color-accent-2), var(--color-accent))",
+            boxShadow:
+              "inset 0 1px 0 oklch(1 0 0 / 0.3), 0 4px 14px -4px var(--color-accent-glow)",
+          }}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>{generateLabel}</span>
+          {estimatedCost && Object.values(estimatedCost).some((v) => v > 0) && (
+            <span className="num ml-1 text-[11px] opacity-70">
+              ~{formatCost(estimatedCost)}
+            </span>
+          )}
+        </button>
+      )}
+
+      <CurlInfoDialog
+        open={curlDialogOpen}
+        onClose={() => setCurlDialogOpen(false)}
+        kind={kind}
+        projectName={projectName}
+        segmentId={segmentId}
+        scriptFile={scriptFile!}
+        prompt={prompt as string | Record<string, unknown>}
+        durationSeconds={durationSeconds}
+      />
+    </div>
+  );
+}

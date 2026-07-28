@@ -1,0 +1,1056 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  ImageIcon,
+  Film,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Check,
+  Loader2,
+  Undo2,
+  Upload,
+} from "lucide-react";
+import type {
+  NarrationSegment,
+  DramaScene,
+  AdShot,
+  ImagePrompt,
+  VideoPrompt,
+  Dialogue,
+} from "@/types";
+import { AD_SECTION_VALUES } from "@/types";
+import { ImagePromptEditor } from "./ImagePromptEditor";
+import { VideoPromptEditor } from "./VideoPromptEditor";
+import { DialogueListEditor } from "./DialogueListEditor";
+import { ResponsiveDetailGrid } from "./ResponsiveDetailGrid";
+import { MediaCard } from "./MediaCard";
+import { NarrationAudioCard } from "./NarrationAudioCard";
+import { NotesDrawer } from "./NotesDrawer";
+import { ReferencesSection } from "./ReferencesSection";
+import { StatusBadge, statusFromAssets } from "./StatusBadge";
+import { Popover } from "@/components/ui/Popover";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { API } from "@/api";
+import { useAppStore } from "@/stores/app-store";
+import { useCostStore } from "@/stores/cost-store";
+import { useProjectsStore } from "@/stores/projects-store";
+import { errMsg } from "@/utils/async";
+import {
+  isStructuredImagePrompt,
+  isStructuredVideoPrompt,
+} from "@/utils/prompt-shape";
+import { isContinuousIntegerRange } from "@/utils/duration_format";
+
+type Segment = NarrationSegment | DramaScene | AdShot;
+type DetailContentMode = "narration" | "drama" | "ad";
+type ImagePromptValue = ImagePrompt | string;
+type VideoPromptValue = VideoPrompt | string;
+
+interface ShotDetailProps {
+  segment: Segment;
+  segmentId: string;
+  contentMode: DetailContentMode;
+  aspectRatio: "9:16" | "16:9";
+  projectName: string;
+  /** 当前剧集剧本文件名，分镜图/视频自主上传需要它定位剧本条目 */
+  scriptFile?: string;
+  isGridMode?: boolean;
+  /** Total shot count for "1/N" indicator */
+  selectedIndex: number;
+  totalCount: number;
+  onPrev: () => void;
+  onNext: () => void;
+  onUpdatePrompt?: (
+    segmentId: string,
+    fieldOrPatch: string | Record<string, unknown>,
+    value?: unknown,
+  ) => void | Promise<void>;
+  /** ad 模式镜头顺序调整（向前/向后移动一位） */
+  onMoveShot?: (shotId: string, direction: "earlier" | "later") => void | Promise<void>;
+  /** 镜头重排请求在途，移动按钮禁用 */
+  movePending?: boolean;
+  onGenerateStoryboard?: (segmentId: string) => void;
+  onGenerateVideo?: (segmentId: string) => void;
+  onGenerateNarration?: (segmentId: string) => void;
+  onUploadStoryboard?: (segmentId: string) => void | Promise<void>;
+  onRestoreStoryboard?: () => Promise<void> | void;
+  onRestoreVideo?: () => Promise<void> | void;
+  generatingStoryboard?: boolean;
+  uploadingStoryboard?: boolean;
+  generatingVideo?: boolean;
+  generatingNarration?: boolean;
+  durationOptions?: number[];
+}
+
+function getNovelText(seg: Segment, mode: DetailContentMode): string {
+  if (mode === "narration") return (seg as NarrationSegment).novel_text || "";
+  return "";
+}
+
+interface DraftState {
+  image_prompt: ImagePromptValue;
+  video_prompt: VideoPromptValue;
+  /** 仅 ad 模式：一等口播文案草稿 */
+  voiceover_text?: string;
+  /** 仅 ad 模式：带货框架段落标签草稿 */
+  section?: string;
+}
+
+// 字段集合稳定（ImagePrompt/VideoPrompt/string），JSON.stringify 即可作等值签名：
+// 任何字段顺序差异都来自我们自己的 setter 或上游同一构造路径，键序一致。
+const stableSig = (value: unknown): string => JSON.stringify(value ?? null);
+
+/** 由上游值构造干净草稿（useState 初始化 / 上游静默跟随 / 取消编辑三处共用）。 */
+function baselineDraft(
+  ip: ImagePromptValue,
+  vp: VideoPromptValue,
+  isAd: boolean,
+  voiceover: string,
+  section: string,
+): DraftState {
+  return {
+    image_prompt: ip,
+    video_prompt: vp,
+    ...(isAd ? { voiceover_text: voiceover, section } : {}),
+  };
+}
+
+/** 草稿等值签名：与上游基线签名同键形状（漂移会让"干净草稿静默跟随上游"失效）。 */
+function draftSig(d: DraftState, isAd: boolean): string {
+  return stableSig(
+    isAd
+      ? {
+          ip: d.image_prompt,
+          vp: d.video_prompt,
+          voiceover_text: d.voiceover_text ?? "",
+          section: d.section ?? "",
+        }
+      : { ip: d.image_prompt, vp: d.video_prompt },
+  );
+}
+
+interface DurationPillProps {
+  seconds: number;
+  segmentId: string;
+  durationOptions: number[];
+  onUpdatePrompt?: ShotDetailProps["onUpdatePrompt"];
+}
+
+function DurationPill({
+  seconds,
+  segmentId,
+  durationOptions,
+  onUpdatePrompt,
+}: DurationPillProps) {
+  const { t } = useTranslation("dashboard");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  // 拖动 slider 期间用本地 state 跟随；松手 / 失焦 / 键盘抬起时再提交一次
+  // 避免 onChange 每像素一次 onUpdatePrompt 产生并发写请求 + 乱序落库
+  const [draftSeconds, setDraftSeconds] = useState<number | null>(null);
+  const displaySeconds = draftSeconds ?? seconds;
+  const commitDraft = useCallback(() => {
+    if (draftSeconds == null) return;
+    if (draftSeconds !== seconds) {
+      void onUpdatePrompt?.(segmentId, "duration_seconds", draftSeconds);
+    }
+    setDraftSeconds(null);
+  }, [draftSeconds, seconds, segmentId, onUpdatePrompt]);
+
+  const editable = !!onUpdatePrompt;
+  const noOptions = durationOptions.length === 0;
+  const isIncompatible =
+    durationOptions.length > 0 && !durationOptions.includes(seconds);
+  const incompatibleLabel = t("duration_incompatible_warning", {
+    value: seconds,
+    supported: durationOptions.join(", "),
+  });
+  const useSlider =
+    isContinuousIntegerRange(durationOptions) && durationOptions.length >= 5;
+
+  const baseClass =
+    "inline-flex items-center gap-1.5 rounded-md px-2 py-[3px] text-[11.5px] focus-ring";
+  const baseStyle: React.CSSProperties = {
+    background: isIncompatible
+      ? "oklch(0.32 0.10 75 / 0.35)"
+      : "oklch(0.22 0.011 265 / 0.6)",
+    border: isIncompatible
+      ? "1px solid oklch(0.65 0.12 75 / 0.5)"
+      : "1px solid var(--color-hairline-soft)",
+    color: isIncompatible ? "oklch(0.85 0.12 80)" : "var(--color-text-2)",
+  };
+
+  if (!editable) {
+    return (
+      <span className={baseClass} style={baseStyle}>
+        <span style={{ color: "var(--color-text-4)" }}>⏱</span>
+        <span className="num">
+          {t("duration_seconds_value_text", { value: seconds })}
+        </span>
+        {isIncompatible && (
+          <span aria-label={incompatibleLabel} title={incompatibleLabel}>
+            ⚠
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        onClick={() => !noOptions && setOpen((o) => !o)}
+        disabled={noOptions}
+        aria-disabled={noOptions || undefined}
+        title={noOptions ? t("duration_no_options") : undefined}
+        className={`${baseClass} transition-colors disabled:cursor-not-allowed disabled:opacity-60`}
+        style={baseStyle}
+      >
+        <span style={{ color: "var(--color-text-4)" }}>⏱</span>
+        <span className="num">
+          {t("duration_seconds_value_text", { value: seconds })}
+        </span>
+        {isIncompatible && (
+          <span aria-label={incompatibleLabel} title={incompatibleLabel}>
+            ⚠
+          </span>
+        )}
+      </button>
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={ref}
+        width="w-auto"
+        align="start"
+        sideOffset={6}
+        backgroundColor="oklch(0.21 0.012 265 / 0.98)"
+        className="rounded-lg p-2"
+        style={{
+          border: "1px solid var(--color-hairline)",
+          boxShadow:
+            "0 24px 60px -20px oklch(0 0 0 / 0.7), 0 0 0 1px var(--color-hairline-soft)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        {useSlider ? (
+          <div className="flex items-center gap-2 px-1 py-1">
+            <input
+              type="range"
+              aria-label={t("duration_selector_aria")}
+              aria-valuetext={t("duration_seconds_value_text", { value: displaySeconds })}
+              min={durationOptions[0]}
+              max={durationOptions[durationOptions.length - 1]}
+              step={1}
+              value={displaySeconds}
+              onChange={(e) => setDraftSeconds(parseInt(e.target.value, 10))}
+              onPointerUp={commitDraft}
+              onKeyUp={(e) => {
+                if (
+                  e.key === "ArrowLeft" ||
+                  e.key === "ArrowRight" ||
+                  e.key === "ArrowUp" ||
+                  e.key === "ArrowDown" ||
+                  e.key === "Home" ||
+                  e.key === "End" ||
+                  e.key === "PageUp" ||
+                  e.key === "PageDown"
+                ) {
+                  commitDraft();
+                }
+              }}
+              onBlur={commitDraft}
+              className="theme-slider w-40"
+            />
+            <span
+              className="num min-w-[2.25rem] text-right text-[11.5px]"
+              style={{ color: "var(--color-text-2)" }}
+            >
+              {t("duration_seconds_value_text", { value: displaySeconds })}
+            </span>
+          </div>
+        ) : (
+          <div
+            className="flex flex-wrap gap-1"
+            role="radiogroup"
+            aria-label={t("duration_selector_aria")}
+          >
+            {durationOptions.map((d) => {
+              const checked = d === seconds;
+              return (
+                <button
+                  key={d}
+                  role="radio"
+                  type="button"
+                  aria-checked={checked}
+                  onClick={() => {
+                    void onUpdatePrompt(segmentId, "duration_seconds", d);
+                    setOpen(false);
+                  }}
+                  className="num rounded-md px-2.5 py-1 text-[11.5px] font-medium transition-colors focus-ring"
+                  style={
+                    checked
+                      ? {
+                          background:
+                            "linear-gradient(180deg, var(--color-accent-2), var(--color-accent))",
+                          color: "oklch(0.14 0 0)",
+                          boxShadow:
+                            "inset 0 1px 0 oklch(1 0 0 / 0.25), 0 2px 6px -2px var(--color-accent-glow)",
+                        }
+                      : {
+                          background: "oklch(0.22 0.011 265 / 0.5)",
+                          color: "var(--color-text-2)",
+                          border: "1px solid var(--color-hairline-soft)",
+                        }
+                  }
+                >
+                  {t("duration_seconds_value_text", { value: d })}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Popover>
+    </>
+  );
+}
+
+export function ShotDetail({
+  segment,
+  segmentId,
+  contentMode,
+  aspectRatio,
+  projectName,
+  scriptFile,
+  isGridMode,
+  selectedIndex,
+  totalCount,
+  onPrev,
+  onNext,
+  onUpdatePrompt,
+  onMoveShot,
+  movePending,
+  onGenerateStoryboard,
+  onGenerateVideo,
+  onGenerateNarration,
+  onUploadStoryboard,
+  onRestoreStoryboard,
+  onRestoreVideo,
+  generatingStoryboard,
+  uploadingStoryboard,
+  generatingVideo,
+  generatingNarration,
+  durationOptions = [],
+}: ShotDetailProps) {
+  const { t } = useTranslation("dashboard");
+  const status = statusFromAssets(segment.generated_assets?.status);
+  const isAuthorized = segment.generated_assets?.authorized === true;
+  const novelText = getNovelText(segment, contentMode);
+  const hasNarrationText = novelText.trim().length > 0;
+  const segCost = useCostStore((s) => s.getSegmentCost(segmentId));
+
+  const ip = segment.image_prompt;
+  const vp = segment.video_prompt;
+  const note = segment.note ?? "";
+  const isAd = contentMode === "ad";
+  const adShot = isAd ? (segment as AdShot) : null;
+  const upstreamVoiceover = adShot?.voiceover_text ?? "";
+  const upstreamSection = adShot?.section ?? "";
+
+  // 草稿：本地编辑直到用户点击 Save。父级 ShotSplitView 通过 key={segmentId}
+  // 在切镜头时硬重置整个组件，所以这里只需处理"上游同字段静默更新"的情况。
+  // 备注不进入草稿，由 NotesDrawer 收起时直接落库。
+  const [draft, setDraft] = useState<DraftState>(() =>
+    baselineDraft(ip, vp, isAd, upstreamVoiceover, upstreamSection),
+  );
+  const [saving, setSaving] = useState(false);
+  const [uploadingKind, setUploadingKind] = useState<"storyboard" | "video" | null>(null);
+  const [uploadConfirmOpen, setUploadConfirmOpen] = useState(false);
+  const storyboardUploadBlocking = useAppStore((s) => s.blockingOverlay != null);
+
+  const handleConfirmUploadStoryboard = async () => {
+    if (!onUploadStoryboard) return;
+    setUploadConfirmOpen(false);
+    try {
+      await onUploadStoryboard(segmentId);
+    } catch {
+      // toast 由 StudioCanvasRouter 统一弹出
+    }
+  };
+
+  const storyboardUploadBusy = uploadingStoryboard || storyboardUploadBlocking;
+
+  const handleUpload = async (kind: "storyboard" | "video", file: File) => {
+    // 单镜头同时只允许一个上传：两张卡写同一后端资源族，避免并发覆写
+    if (!scriptFile || uploadingKind) return;
+    setUploadingKind(kind);
+    try {
+      const result = await API.uploadShotMedia(projectName, scriptFile, segmentId, kind, file);
+      useProjectsStore.getState().updateAssetFingerprints(result.asset_fingerprints);
+      // 复用版本恢复的刷新管线（refreshProject 等由父级回调承载）
+      if (kind === "storyboard") {
+        await onRestoreStoryboard?.();
+      } else {
+        await onRestoreVideo?.();
+      }
+      useAppStore
+        .getState()
+        .pushToast(t("media_upload_success", { id: segmentId }), "success");
+    } catch (err) {
+      useAppStore
+        .getState()
+        .pushToast(t("media_upload_failed", { message: errMsg(err) }), "error");
+    } finally {
+      setUploadingKind(null);
+    }
+  };
+
+  const upstreamSig = useMemo(
+    () => draftSig(baselineDraft(ip, vp, isAd, upstreamVoiceover, upstreamSection), isAd),
+    [isAd, ip, vp, upstreamVoiceover, upstreamSection],
+  );
+  const baselineSigRef = useRef(upstreamSig);
+  const draftRef = useRef(draft);
+  // 同步 draft 到 ref，供下方 effect 读取最新草稿而无需把 draft 加入 deps
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  // 上游变更（保存完成 / agent 编辑）：草稿干净时静默跟随；脏时保留用户输入。
+  // 把 draft 放到 ref 里读，避免每次 keystroke 都重跑 effect+stringify。
+  useEffect(() => {
+    if (baselineSigRef.current === upstreamSig) return;
+    if (draftSig(draftRef.current, isAd) === baselineSigRef.current) {
+      setDraft(baselineDraft(ip, vp, isAd, upstreamVoiceover, upstreamSection));
+    }
+    baselineSigRef.current = upstreamSig;
+  }, [upstreamSig, ip, vp, isAd, upstreamVoiceover, upstreamSection]);
+
+  // 引用相等优先：未编辑过的字段直接跳过 stringify。
+  const dirtyPatch = useMemo<Record<string, unknown>>(() => {
+    const patch: Record<string, unknown> = {};
+    if (
+      draft.image_prompt !== ip &&
+      stableSig(draft.image_prompt) !== stableSig(ip)
+    )
+      patch.image_prompt = draft.image_prompt;
+    if (
+      draft.video_prompt !== vp &&
+      stableSig(draft.video_prompt) !== stableSig(vp)
+    )
+      patch.video_prompt = draft.video_prompt;
+    if (isAd) {
+      if ((draft.voiceover_text ?? "") !== upstreamVoiceover)
+        patch.voiceover_text = draft.voiceover_text ?? "";
+      if ((draft.section ?? "") !== upstreamSection)
+        patch.section = draft.section ?? "";
+    }
+    return patch;
+  }, [draft, ip, vp, isAd, upstreamVoiceover, upstreamSection]);
+
+  const dirty = Object.keys(dirtyPatch).length > 0;
+
+
+  const isStructIp = isStructuredImagePrompt(draft.image_prompt);
+  const isStructVp = isStructuredVideoPrompt(draft.video_prompt);
+  const imgDraft: ImagePrompt | null = isStructIp
+    ? (draft.image_prompt as ImagePrompt)
+    : null;
+  const vidDraft: VideoPrompt | null = isStructVp
+    ? (draft.video_prompt as VideoPrompt)
+    : null;
+
+  const handleImgUpdate = (patch: Partial<ImagePrompt>) => {
+    setDraft((d) => {
+      if (!isStructuredImagePrompt(d.image_prompt)) return d;
+      const merged: ImagePrompt = {
+        ...d.image_prompt,
+        ...patch,
+        composition: {
+          ...d.image_prompt.composition,
+          ...(patch.composition ?? {}),
+        },
+      };
+      return { ...d, image_prompt: merged };
+    });
+  };
+
+  const handleVidUpdate = (patch: Partial<VideoPrompt>) => {
+    setDraft((d) => {
+      if (!isStructuredVideoPrompt(d.video_prompt)) return d;
+      const merged: VideoPrompt = { ...d.video_prompt, ...patch };
+      return { ...d, video_prompt: merged };
+    });
+  };
+
+  const handleDialogueChange = (dialogue: Dialogue[]) => {
+    handleVidUpdate({ dialogue });
+  };
+
+  const handleImgStringChange = (val: string) => {
+    setDraft((d) => ({ ...d, image_prompt: val }));
+  };
+
+  const handleVidStringChange = (val: string) => {
+    setDraft((d) => ({ ...d, video_prompt: val }));
+  };
+
+  const handleNotesCommit = (value: string) => {
+    if (value === note) return;
+    void onUpdatePrompt?.(segmentId, "note", value);
+  };
+
+  const handleSave = async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    try {
+      await onUpdatePrompt?.(segmentId, dirtyPatch);
+      // 上游会刷新 → useEffect 检测到 baselineSig 变化 → 草稿等于新基线时保持干净
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (saving) return;
+    setDraft(baselineDraft(ip, vp, isAd, upstreamVoiceover, upstreamSection));
+  };
+
+  const sbEstimate = segCost?.estimate?.image;
+  const vidEstimate = segCost?.estimate?.video;
+  const narrationEstimate = segCost?.estimate?.audio;
+
+  const assets = segment.generated_assets;
+  const hasStoryboard = !!assets?.storyboard_image;
+
+  const dirtyHint = t("shot_detail_save_first");
+
+  const characterNames =
+    contentMode === "drama"
+      ? (segment as DramaScene).characters_in_scene ?? []
+      : contentMode === "ad"
+        ? (segment as AdShot).characters_in_shot ?? []
+        : (segment as NarrationSegment).characters_in_segment ?? [];
+  const sceneNames = segment.scenes ?? [];
+  const propNames = segment.props ?? [];
+  // 展示用去重：products_in_shot 无唯一性约束（同一产品多次入画合法），重复名直接作 key 会撞
+  const productNames = isAd ? Array.from(new Set(adShot?.products_in_shot ?? [])) : [];
+  const refsReadOnly = !onUpdatePrompt;
+
+  const handleRefsSave = async (patch: Record<string, string[]>) => {
+    if (!onUpdatePrompt || Object.keys(patch).length === 0) return;
+    await onUpdatePrompt(segmentId, patch);
+  };
+
+  const sectionHeaderStyle: React.CSSProperties = {
+    color: "var(--color-text-4)",
+    letterSpacing: "1px",
+    fontFamily: "var(--font-mono)",
+  };
+
+  const leftColumn = (
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-3.5 pb-5 pt-3.5">
+      {isAd && (
+        <>
+          <div>
+            <label
+              htmlFor={`shot-section-${segmentId}`}
+              className="mb-2 block text-[10.5px] font-bold uppercase"
+              style={sectionHeaderStyle}
+            >
+              {t("detail_section_shot_section")}
+            </label>
+            <input
+              id={`shot-section-${segmentId}`}
+              type="text"
+              list={`shot-section-options-${segmentId}`}
+              value={draft.section ?? ""}
+              onChange={(e) => setDraft((d) => ({ ...d, section: e.target.value }))}
+              placeholder={t("detail_shot_section_placeholder")}
+              className="prompt-ta"
+              style={{ minHeight: 0 }}
+            />
+            <datalist id={`shot-section-options-${segmentId}`}>
+              {AD_SECTION_VALUES.map((v) => (
+                <option key={v} value={v} />
+              ))}
+            </datalist>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center gap-1.5">
+              <label
+                htmlFor={`shot-voiceover-${segmentId}`}
+                className="text-[10.5px] font-bold uppercase"
+                style={sectionHeaderStyle}
+              >
+                {t("detail_section_voiceover")}
+              </label>
+              <span className="flex-1" />
+              <span className="num text-[10px]" style={{ color: "var(--color-text-4)" }}>
+                {t("detail_field_chars_count", { count: (draft.voiceover_text ?? "").length })}
+              </span>
+            </div>
+            <textarea
+              id={`shot-voiceover-${segmentId}`}
+              className="prompt-ta"
+              value={draft.voiceover_text ?? ""}
+              onChange={(e) => setDraft((d) => ({ ...d, voiceover_text: e.target.value }))}
+              placeholder={t("detail_voiceover_placeholder")}
+              style={{ minHeight: 96 }}
+            />
+          </div>
+
+          {productNames.length > 0 && (
+            <div>
+              <div className="mb-2 text-[10.5px] font-bold uppercase" style={sectionHeaderStyle}>
+                {t("detail_section_products")}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {productNames.map((name) => (
+                  <span
+                    key={name}
+                    className="rounded-md px-2 py-1 text-[11.5px]"
+                    style={{
+                      background: "oklch(0.22 0.011 265 / 0.6)",
+                      border: "1px solid var(--color-hairline-soft)",
+                      color: "var(--color-text-2)",
+                    }}
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      <ReferencesSection
+        projectName={projectName}
+        contentMode={contentMode}
+        characterNames={characterNames}
+        sceneNames={sceneNames}
+        propNames={propNames}
+        onSave={handleRefsSave}
+        disabled={dirty || saving || refsReadOnly}
+        disabledHint={dirty ? dirtyHint : undefined}
+      />
+      <div>
+        <div
+          className="mb-2 text-[10.5px] font-bold uppercase"
+          style={{
+            color: "var(--color-text-4)",
+            letterSpacing: "1px",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          {t("detail_section_dialogue")}
+        </div>
+        {vidDraft ? (
+          <DialogueListEditor
+            dialogue={vidDraft.dialogue ?? []}
+            onChange={handleDialogueChange}
+          />
+        ) : (
+          <div
+            className="rounded-md py-3 text-center text-[11.5px] italic"
+            style={{
+              border: "1px dashed var(--color-hairline)",
+              color: "var(--color-text-4)",
+            }}
+          >
+            {t("detail_dialogue_empty")}
+          </div>
+        )}
+      </div>
+
+      {(hasNarrationText || contentMode === "narration") && (
+        <div>
+          <div
+            className="mb-2 text-[10.5px] font-bold uppercase"
+            style={{
+              color: "var(--color-text-4)",
+              letterSpacing: "1px",
+              fontFamily: "var(--font-mono)",
+            }}
+          >
+            {t("detail_section_novel")}
+          </div>
+          <div
+            className="rounded-md px-3 py-2.5"
+            style={{
+              background:
+                "linear-gradient(180deg, oklch(0.22 0.012 265 / 0.5), oklch(0.20 0.012 265 / 0.35))",
+              border: "1px solid var(--color-hairline-soft)",
+              borderLeft: "3px solid var(--color-accent-soft)",
+            }}
+          >
+            <p
+              className="display-serif m-0 text-[13px]"
+              style={{ lineHeight: 1.65, color: "var(--color-text)" }}
+            >
+              {hasNarrationText ? novelText.trim() : t("no_original_text")}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const midColumn = (
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto px-5 pb-7 pt-3.5">
+      <div
+        className="text-[10.5px] font-bold uppercase"
+        style={{
+          color: "var(--color-text-4)",
+          letterSpacing: "1px",
+          fontFamily: "var(--font-mono)",
+        }}
+      >
+        {t("detail_section_prompts")}
+      </div>
+
+      <section>
+        <div className="mb-2 flex items-center gap-1.5">
+          <ImageIcon
+            className="h-3.5 w-3.5"
+            style={{ color: "var(--color-text-3)" }}
+          />
+          <span
+            className="text-[12.5px] font-semibold"
+            style={{ color: "var(--color-text-2)" }}
+          >
+            {t("detail_image_prompt_title")}
+          </span>
+          <span className="flex-1" />
+          {imgDraft && (
+            <span
+              className="num text-[10px]"
+              style={{ color: "var(--color-text-4)" }}
+            >
+              {t("detail_field_chars_count", { count: imgDraft.scene.length })}
+            </span>
+          )}
+        </div>
+        {imgDraft ? (
+          <ImagePromptEditor prompt={imgDraft} onUpdate={handleImgUpdate} />
+        ) : (
+          <textarea
+            className="prompt-ta"
+            value={
+              typeof draft.image_prompt === "string" ? draft.image_prompt : ""
+            }
+            onChange={(e) => handleImgStringChange(e.target.value)}
+            placeholder={t("detail_image_prompt_placeholder")}
+            style={{ minHeight: 124 }}
+          />
+        )}
+      </section>
+
+      <section>
+        <div className="mb-2 flex items-center gap-1.5">
+          <Film
+            className="h-3.5 w-3.5"
+            style={{ color: "var(--color-text-3)" }}
+          />
+          <span
+            className="text-[12.5px] font-semibold"
+            style={{ color: "var(--color-text-2)" }}
+          >
+            {t("detail_video_prompt_title")}
+          </span>
+          <span className="flex-1" />
+          {vidDraft && (
+            <span
+              className="num text-[10px]"
+              style={{ color: "var(--color-text-4)" }}
+            >
+              {t("detail_field_chars_count", { count: vidDraft.action.length })}
+            </span>
+          )}
+        </div>
+        {vidDraft ? (
+          <VideoPromptEditor prompt={vidDraft} onUpdate={handleVidUpdate} />
+        ) : (
+          <textarea
+            className="prompt-ta"
+            value={
+              typeof draft.video_prompt === "string" ? draft.video_prompt : ""
+            }
+            onChange={(e) => handleVidStringChange(e.target.value)}
+            placeholder={t("detail_video_prompt_placeholder")}
+            style={{ minHeight: 88 }}
+          />
+        )}
+      </section>
+    </div>
+  );
+
+  const rightColumn = (
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto px-[18px] pb-7 pt-3.5">
+      <MediaCard
+          kind="storyboard"
+          projectName={projectName}
+          segmentId={segmentId}
+          assetPath={assets?.storyboard_image ?? null}
+          aspectRatio={aspectRatio}
+          hideGenerateButton={isGridMode}
+          generating={generatingStoryboard}
+          estimatedCost={sbEstimate ?? undefined}
+          onGenerate={onGenerateStoryboard ? () => onGenerateStoryboard(segmentId) : undefined}
+          onRestore={onRestoreStoryboard}
+          onUpload={scriptFile ? (file) => handleUpload("storyboard", file) : undefined}
+          uploading={uploadingKind === "storyboard"}
+          uploadDisabled={uploadingKind !== null}
+          generateDisabled={dirty || saving}
+          generateDisabledHint={dirty ? dirtyHint : undefined}
+          prompt={draft.image_prompt}
+          scriptFile={scriptFile}
+        />
+      <MediaCard
+        kind="video"
+        projectName={projectName}
+        segmentId={segmentId}
+        assetPath={assets?.video_clip ?? null}
+        posterPath={assets?.video_thumbnail ?? null}
+        aspectRatio={aspectRatio}
+        generating={generatingVideo}
+        generateDisabled={!hasStoryboard || dirty || saving}
+        generateDisabledHint={dirty ? dirtyHint : undefined}
+        estimatedCost={vidEstimate ?? undefined}
+        onGenerate={onGenerateVideo ? () => onGenerateVideo(segmentId) : undefined}
+        onRestore={onRestoreVideo}
+        onUpload={scriptFile ? (file) => handleUpload("video", file) : undefined}
+        uploading={uploadingKind === "video"}
+        uploadDisabled={uploadingKind !== null}
+        prompt={draft.video_prompt}
+        scriptFile={scriptFile}
+        durationSeconds={segment.duration_seconds}
+      />
+      {contentMode === "narration" && (
+        <NarrationAudioCard
+          projectName={projectName}
+          segmentId={segmentId}
+          novelText={novelText}
+          assetPath={assets?.narration_audio ?? null}
+          generating={generatingNarration}
+          generateDisabled={!hasNarrationText || dirty || saving}
+          generateDisabledHint={!hasNarrationText ? t("no_original_text") : dirty ? dirtyHint : undefined}
+          estimatedCost={narrationEstimate ?? undefined}
+          onGenerate={onGenerateNarration ? () => onGenerateNarration(segmentId) : undefined}
+        />
+      )}
+    </div>
+  );
+
+  // 重排在途也要锁定切镜：ShotSplitView 在移动完成回调里按当前 selectedIndex 偏移，
+  // 在途切镜会让偏移作用到新选中项，选中态跳到错误镜头。
+  const navDisabled = dirty || saving || !!movePending;
+  // 禁用原因提示与禁用条件同源：重排在途与未保存修改分别给出对应说明
+  const navDisabledHint = movePending ? t("shot_move_pending") : dirty || saving ? dirtyHint : undefined;
+
+  return (
+    <div
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+      style={{
+        background:
+          "radial-gradient(ellipse at top, oklch(0.20 0.012 270 / 0.35), oklch(0.17 0.010 265 / 0.2))",
+      }}
+    >
+      <div
+        className="relative flex items-center gap-2.5 px-5 py-3"
+        style={{ borderBottom: "1px solid var(--color-hairline-soft)" }}
+      >
+        <span
+          className="num rounded-md px-2.5 py-1 text-[12px] font-bold"
+          style={{
+            background:
+              "linear-gradient(180deg, var(--color-accent-2), var(--color-accent))",
+            color: "oklch(0.14 0 0)",
+            letterSpacing: "0.3px",
+            boxShadow:
+              "inset 0 1px 0 oklch(1 0 0 / 0.3), 0 2px 6px -2px var(--color-accent-glow)",
+          }}
+        >
+          {segmentId}
+        </span>
+        {onUploadStoryboard && (
+          <button
+            type="button"
+            onClick={() => setUploadConfirmOpen(true)}
+            disabled={storyboardUploadBusy || dirty || saving || isAuthorized}
+            title={
+              isAuthorized
+                ? t("upload_storyboard_already_authorized")
+                : t("upload_storyboard")
+            }
+            className="sv-navbtn inline-flex items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {storyboardUploadBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            <span>{t("upload_storyboard")}</span>
+          </button>
+        )}
+        <DurationPill
+          seconds={segment.duration_seconds ?? 0}
+          segmentId={segmentId}
+          durationOptions={durationOptions}
+          onUpdatePrompt={onUpdatePrompt}
+        />
+        <StatusBadge status={status} />
+        <span className="flex-1" />
+
+        <div className="flex items-center gap-1.5">
+          <span
+            className="num text-[10.5px]"
+            style={{ color: "var(--color-text-4)" }}
+          >
+            {t("shot_detail_count", {
+              current: selectedIndex + 1,
+              total: totalCount,
+            })}
+          </span>
+          {isAd && onMoveShot && (
+            <>
+              <button
+                type="button"
+                onClick={() => void onMoveShot(segmentId, "earlier")}
+                disabled={navDisabled || selectedIndex === 0}
+                title={navDisabledHint ?? t("shot_move_earlier")}
+                className="sv-navbtn disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={t("shot_move_earlier")}
+              >
+                <ChevronUp className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void onMoveShot(segmentId, "later")}
+                disabled={navDisabled || selectedIndex === totalCount - 1}
+                title={navDisabledHint ?? t("shot_move_later")}
+                className="sv-navbtn disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={t("shot_move_later")}
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={navDisabled}
+            title={navDisabledHint ?? t("shot_detail_prev")}
+            className="sv-navbtn disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={t("shot_detail_prev")}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={navDisabled}
+            title={navDisabledHint ?? t("shot_detail_next")}
+            className="sv-navbtn disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={t("shot_detail_next")}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+          <NotesDrawer
+            shotId={segmentId}
+            value={note}
+            onCommit={handleNotesCommit}
+          />
+        </div>
+      </div>
+
+      {dirty && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 px-5 py-2"
+          style={{
+            background:
+              "linear-gradient(180deg, var(--color-accent-dim), oklch(0.20 0.012 270 / 0.35))",
+            borderBottom: "1px solid var(--color-accent-soft)",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full"
+            style={{
+              background: "var(--color-accent)",
+              boxShadow: "0 0 6px var(--color-accent-glow)",
+            }}
+          />
+          <span
+            className="num text-[10.5px] uppercase"
+            style={{
+              letterSpacing: "1.0px",
+              color: "var(--color-accent-2)",
+            }}
+          >
+            {t("shot_detail_unsaved")}
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={saving}
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] text-[var(--color-text-3)] transition-colors [&:not(:disabled)]:hover:bg-[oklch(0.26_0.013_265_/_0.7)] [&:not(:disabled)]:hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              border: "1px solid var(--color-hairline)",
+              background: "oklch(0.22 0.011 265 / 0.5)",
+            }}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            <span>{t("shot_detail_cancel")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving}
+            className="focus-ring inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-[11.5px] font-medium transition-transform [&:not(:disabled)]:hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              color: "oklch(0.14 0 0)",
+              background:
+                "linear-gradient(135deg, var(--color-accent-2), var(--color-accent))",
+              boxShadow:
+                "inset 0 1px 0 oklch(1 0 0 / 0.35), 0 6px 18px -6px var(--color-accent-glow), 0 0 0 1px var(--color-accent-soft)",
+            }}
+          >
+            {saving ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="h-3.5 w-3.5" />
+            )}
+            <span>
+              {saving ? t("shot_detail_saving") : t("shot_detail_save")}
+            </span>
+          </button>
+        </div>
+      )}
+
+      <ResponsiveDetailGrid
+        left={leftColumn}
+        mid={midColumn}
+        right={rightColumn}
+      />
+
+      <ConfirmDialog
+        open={uploadConfirmOpen}
+        title={t("upload_storyboard_confirm_title")}
+        description={t("upload_storyboards_confirm_description")}
+        confirmLabel={t("upload_storyboards_confirm")}
+        onConfirm={() => void handleConfirmUploadStoryboard()}
+        onCancel={() => setUploadConfirmOpen(false)}
+      />
+    </div>
+  );
+}

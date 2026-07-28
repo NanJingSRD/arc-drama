@@ -1,0 +1,1292 @@
+{
+    "info": {
+        "_postman_id": "ai-anidrama-api-collection",
+        "name": "AIAniDrama API 接口集合",
+        "description": "AI动漫剧集生成平台API - 将小说/剧本转换为动漫剧集",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:1241/api/v1",
+            "type": "string"
+        },
+        {
+            "key": "project_id",
+            "value": "test-project",
+            "type": "string"
+        },
+        {
+            "key": "episode_number",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "scene_id",
+            "value": "scene_1",
+            "type": "string"
+        },
+        {
+            "key": "task_id",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "provider_id",
+            "value": "1",
+            "type": "string"
+        },
+        {
+            "key": "segment_id",
+            "value": "E1S01",
+            "type": "string"
+        },
+        {
+            "key": "api_key_id",
+            "value": "1",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "项目管理",
+            "item": [
+                {
+                    "name": "创建项目",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"test-project\",\n    \"title\": \"测试项目\",\n    \"content_mode\": \"narration\",\n    \"generation_mode\": \"storyboard\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/projects"
+                        },
+                        "description": "创建新项目"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出项目",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/projects"
+                        },
+                        "description": "列出所有项目"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取项目详情",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/projects/{{project_id}}"
+                        },
+                        "description": "获取项目详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新项目",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"更新后的项目标题\",\n    \"status\": \"draft\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/projects/{{project_id}}"
+                        },
+                        "description": "更新项目信息"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除项目",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/projects/{{project_id}}"
+                        },
+                        "description": "删除项目"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "上传源文件",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "files",
+                                    "type": "file",
+                                    "src": []
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/projects/{{project_id}}/source"
+                        },
+                        "description": "上传小说源文件"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "处理剧本",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episodes_count\": 3\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/projects/{{project_id}}/script/process"
+                        },
+                        "description": "自动处理剧本"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "剧本管理",
+            "item": [
+                {
+                    "name": "列出剧本",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/scripts/{{project_id}}"
+                        },
+                        "description": "列出项目所有剧本"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取剧本",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/scripts/{{project_id}}/{{episode_number}}"
+                        },
+                        "description": "获取单集剧本"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "保存剧本",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"第一集\",\n    \"scenes\": [\n        {\n            \"scene_id\": \"scene_1\",\n            \"characters_in_scene\": [\"主角\"],\n            \"visual_description\": \"一片美丽的森林\",\n            \"action\": \"主角走进森林\",\n            \"dialogue\": [],\n            \"narration\": \"故事开始了...\"\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/scripts/{{project_id}}/{{episode_number}}"
+                        },
+                        "description": "保存剧本"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除剧本",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/scripts/{{project_id}}/{{episode_number}}"
+                        },
+                        "description": "删除剧本"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "资产管理",
+            "item": [
+                {
+                    "name": "自动生成资产",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"asset_type\": \"character\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/auto-assets/generate"
+                        },
+                        "description": "自动生成资产（character/scene/prop）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出角色",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters"
+                        },
+                        "description": "列出角色列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取角色",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters/主角"
+                        },
+                        "description": "获取角色详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "生成角色设计图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"prompt\": \"一个勇敢的少年，穿着蓝色衣服\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters/主角/design"
+                        },
+                        "description": "生成角色设计图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "创建角色",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"新角色\",\n    \"description\": \"一个勇敢的战士\",\n    \"voice_style\": \"沉稳有力\",\n    \"image_prompt\": \"一个身穿铠甲的勇士\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters"
+                        },
+                        "description": "创建角色"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新角色",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"description\": \"更新后的角色描述\",\n    \"voice_style\": \"温柔细腻\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters/主角"
+                        },
+                        "description": "更新角色"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除角色",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/characters/主角"
+                        },
+                        "description": "删除角色"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出场景",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes"
+                        },
+                        "description": "列出场景列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取场景",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes/森林"
+                        },
+                        "description": "获取场景详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "生成场景设计图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"prompt\": \"美丽的森林场景，阳光透过树叶\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes/森林/design"
+                        },
+                        "description": "生成场景设计图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "创建场景",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"新场景\",\n    \"description\": \"一个神秘的城堡\",\n    \"image_prompt\": \"宏伟的城堡，夜晚\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes"
+                        },
+                        "description": "创建场景"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新场景",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"description\": \"更新后的场景描述\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes/森林"
+                        },
+                        "description": "更新场景"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除场景",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/scenes/森林"
+                        },
+                        "description": "删除场景"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出道具",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props"
+                        },
+                        "description": "列出道具列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取道具",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props/宝剑"
+                        },
+                        "description": "获取道具详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "生成道具设计图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"prompt\": \"一把发光的宝剑\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props/宝剑/design"
+                        },
+                        "description": "生成道具设计图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "创建道具",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"新道具\",\n    \"description\": \"一把神秘的钥匙\",\n    \"image_prompt\": \"金色的魔法钥匙\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props"
+                        },
+                        "description": "创建道具"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新道具",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"description\": \"更新后的道具描述\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props/宝剑"
+                        },
+                        "description": "更新道具"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除道具",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/assets/{{project_id}}/props/宝剑"
+                        },
+                        "description": "删除道具"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "内容生成",
+            "item": [
+                {
+                    "name": "生成分镜图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_id\": \"{{scene_id}}\",\n    \"prompt\": \"一个美丽的场景\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/storyboard"
+                        },
+                        "description": "生成分镜图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "批量生成分镜图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_ids\": [\"scene_1\", \"scene_2\", \"scene_3\"],\n    \"prompt\": \"美丽的场景\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/storyboard/batch"
+                        },
+                        "description": "批量生成分镜图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "重新生成分镜图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_id\": \"{{scene_id}}\",\n    \"prompt\": \"重新生成的场景\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/storyboard/regenerate"
+                        },
+                        "description": "重新生成分镜图"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "生成视频",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_id\": \"{{scene_id}}\",\n    \"prompt\": \"一个美丽的场景，生成视频\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/video"
+                        },
+                        "description": "生成视频"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "批量生成视频",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_ids\": [\"scene_1\", \"scene_2\", \"scene_3\"],\n    \"prompt\": \"美丽的场景，生成视频\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/video/batch"
+                        },
+                        "description": "批量生成视频"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "重新生成视频",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_id\": \"{{scene_id}}\",\n    \"prompt\": \"重新生成的视频场景\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/generate/{{project_id}}/video/regenerate"
+                        },
+                        "description": "重新生成视频"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "分镜上传授权",
+            "item": [
+                {
+                    "name": "上传单张分镜图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"segment_id\": \"{{segment_id}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/storyboard/upload"
+                        },
+                        "description": "上传单张分镜图片到外部平台并授权"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "批量上传分镜图",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"segment_ids\": [\"E1S01\", \"E1S02\", \"E1S03\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/storyboard/upload/batch"
+                        },
+                        "description": "批量上传分镜图片到外部平台并授权"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "分镜授权",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"project_id\": \"{{project_id}}\",\n    \"episode_number\": {{episode_number}},\n    \"scene_id\": \"{{scene_id}}\",\n    \"asset_id\": \"asset_123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/storyboard/authorize"
+                        },
+                        "description": "手动授权分镜图"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "任务队列",
+            "item": [
+                {
+                    "name": "获取任务",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/tasks/{{task_id}}"
+                        },
+                        "description": "获取任务详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出任务",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/tasks?project_id={{project_id}}"
+                        },
+                        "description": "列出任务列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "流式任务状态",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/tasks/{{task_id}}/stream"
+                        },
+                        "description": "SSE 流式任务状态"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "供应商管理",
+            "item": [
+                {
+                    "name": "列出供应商",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/providers"
+                        },
+                        "description": "列出所有供应商"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "测试供应商",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/providers/srd/test"
+                        },
+                        "description": "测试供应商连接"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取供应商配置",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/providers/srd/config"
+                        },
+                        "description": "获取供应商配置"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "自定义供应商",
+            "item": [
+                {
+                    "name": "列出自定义供应商",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers"
+                        },
+                        "description": "列出所有自定义供应商（含模型列表）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出端点目录",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/endpoints"
+                        },
+                        "description": "获取端点目录（OpenAI/Google兼容格式）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "创建自定义供应商",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"display_name\": \"自定义供应商\",\n    \"discovery_format\": \"openai\",\n    \"base_url\": \"https://api.example.com/v1\",\n    \"api_key\": \"your-api-key\",\n    \"models\": [\n        {\n            \"model_id\": \"model-1\",\n            \"display_name\": \"模型1\",\n            \"is_default\": true,\n            \"capabilities\": [\"text\", \"image\", \"video\"]\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers"
+                        },
+                        "description": "创建自定义供应商，可同时创建模型列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取供应商详情",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/{{provider_id}}"
+                        },
+                        "description": "获取单个自定义供应商详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新供应商",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"display_name\": \"更新后的供应商名称\",\n    \"base_url\": \"https://api.new.example.com/v1\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/{{provider_id}}"
+                        },
+                        "description": "更新自定义供应商配置"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "完整更新供应商",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"display_name\": \"完整更新供应商\",\n    \"base_url\": \"https://api.example.com/v1\",\n    \"api_key\": \"new-api-key\",\n    \"models\": [\n        {\n            \"model_id\": \"model-2\",\n            \"display_name\": \"模型2\",\n            \"is_default\": true,\n            \"capabilities\": [\"text\", \"image\"]\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/{{provider_id}}"
+                        },
+                        "description": "原子更新供应商元数据+模型列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除供应商",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/{{provider_id}}"
+                        },
+                        "description": "删除自定义供应商（级联删除模型）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "替换模型列表",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"models\": [\n        {\n            \"model_id\": \"new-model\",\n            \"display_name\": \"新模型\",\n            \"is_default\": true,\n            \"capabilities\": [\"text\", \"image\", \"video\"]\n        }\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/{{provider_id}}/models"
+                        },
+                        "description": "替换供应商的整个模型列表"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "发现模型",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"base_url\": \"https://api.example.com/v1\",\n    \"api_key\": \"your-api-key\",\n    \"discovery_format\": \"openai\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/custom-providers/discover"
+                        },
+                        "description": "自动发现供应商的可用模型"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "视频导出",
+            "item": [
+                {
+                    "name": "导出视频",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}},\n    \"scene_ids\": [\"scene_1\", \"scene_2\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/exports/{{project_id}}/video"
+                        },
+                        "description": "导出视频（可指定场景）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "导出项目",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"include_videos\": true,\n    \"include_storyboards\": true,\n    \"include_assets\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/exports/{{project_id}}/project"
+                        },
+                        "description": "导出整个项目（ZIP打包）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "导出剪映草稿",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"episode_number\": {{episode_number}}\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/exports/{{project_id}}/jianying"
+                        },
+                        "description": "导出剪映草稿"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "项目进度",
+            "item": [
+                {
+                    "name": "获取项目进度",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/project-progress/{{project_id}}"
+                        },
+                        "description": "获取项目进度状态和所有节点"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取当前步骤",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/project-progress/{{project_id}}/current-step"
+                        },
+                        "description": "获取当前进行的步骤"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "文件管理",
+            "item": [
+                {
+                    "name": "列出源文件",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/source"
+                        },
+                        "description": "列出项目的所有源文件"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取源文件内容",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/source/novel.txt"
+                        },
+                        "description": "获取单个源文件的内容"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "保存源文件",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"content\": \"小说内容...\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/source/novel.txt"
+                        },
+                        "description": "保存源文件内容"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除源文件",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/source/novel.txt"
+                        },
+                        "description": "删除源文件"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出剧本文件",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/scripts"
+                        },
+                        "description": "列出项目的所有剧本文件"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出分镜文件",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/storyboards"
+                        },
+                        "description": "列出项目的所有分镜文件"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出视频文件",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/files/{{project_id}}/videos"
+                        },
+                        "description": "列出项目的所有视频文件"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "API密钥管理",
+            "item": [
+                {
+                    "name": "创建API密钥",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"我的密钥\",\n    \"expires_days\": 30\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api-keys"
+                        },
+                        "description": "创建新API密钥，完整key仅在响应中出现一次"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "列出API密钥",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api-keys"
+                        },
+                        "description": "列出所有API密钥（不含完整key）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "获取API密钥",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api-keys/{{api_key_id}}"
+                        },
+                        "description": "获取单个API密钥详情"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "更新API密钥",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"name\": \"更新后的密钥名称\",\n    \"expires_days\": 60\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api-keys/{{api_key_id}}"
+                        },
+                        "description": "更新API密钥（名称和过期时间）"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "删除API密钥",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api-keys/{{api_key_id}}"
+                        },
+                        "description": "删除（吊销）API密钥"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "重新删除API密钥",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api-keys/{{api_key_id}}/force"
+                        },
+                        "description": "强制删除API密钥（忽略依赖检查）"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
