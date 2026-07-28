@@ -13,7 +13,15 @@
 ![输入图片说明](e171daba9761d64a3ceec6bd19748323.png) 
 
 ---
+### 🧩 提示词工厂
 
+海量风格一键复制，让创意无缝转化为爆款AI漫剧。
+| 功能模块 | 截图 |
+|----------|------|
+| **风格模板库** | ![风格模板库](screenshots/screenshots/dbbb928f6635ffbec94c1ca0598ca9ac.png) |
+| **题材辐射图** | ![题材辐射图](screenshots/screenshots/777bf1c2dd5cfed0dbf4662a7f3c314a.png) |
+| **角色设定** | ![角色设定](screenshots/screenshots/4321c1c3e52c2888d1c3e17426dac828.png) |
+---
 ## ✨ 核心能力
 
 | 能力 | 描述 |
