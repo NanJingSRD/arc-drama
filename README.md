@@ -1,4 +1,4 @@
-# arcDrama
+# ArcDrama
 
 > **AI 漫剧生成平台 — 从小说到成片，一键编排**
 
@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-<!-- TODO: Hero 截图 — 替换为平台工作台主页大图 -->
+![输入图片说明](e171daba9761d64a3ceec6bd19748323.png) 
 
 ---
 
@@ -215,9 +215,20 @@ flowchart TB
 | **测试** | Vitest, Testing Library |
 | **包管理** | pnpm |
 | **容器化** | Docker |
-
 ---
+---
+### 💬 加入社群
 
+> 📱 扫码加入微信群或飞书群，获取最新模型上线通知、优惠活动与技术交流。
+
+<p align="center">
+  <img src="./screenshots/wechat-qrcode.jpg" alt="微信群聊二维码" width="200" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./screenshots/feishu-qrcode.jpg" alt="飞书群聊二维码" width="200" />
+  <br/>
+  <em>▲ 左：微信群 &nbsp;|&nbsp; 右：飞书群（如二维码过期请添加微信 zwl568633995）</em>
+</p>
+---
 ## 📖 文档
 
 - [API 文档](backend/API_DOCS.md) — 后端接口详细说明
