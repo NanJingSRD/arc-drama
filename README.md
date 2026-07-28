@@ -1,4 +1,4 @@
-# arcDrama
+# ArcDrama
 
 > **AI 漫剧生成平台 — 从小说到成片，一键编排**
 
