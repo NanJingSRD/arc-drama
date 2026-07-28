@@ -202,11 +202,18 @@ flowchart TB
 | **包管理** | pnpm |
 | **容器化** | Docker |
 ---
+---
+### 💬 加入社群
 
-## 交流群
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Web%20%7C%20API-brightgreen)](https://aiplatform.njsrd.com/)
-[![Models](https://img.shields.io/badge/models-16+-orange)]()
+> 📱 扫码加入微信群或飞书群，获取最新模型上线通知、优惠活动与技术交流。
+
+<p align="center">
+  <img src="./screenshots/wechat-qrcode.jpg" alt="微信群聊二维码" width="200" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./screenshots/feishu-qrcode.jpg" alt="飞书群聊二维码" width="200" />
+  <br/>
+  <em>▲ 左：微信群 &nbsp;|&nbsp; 右：飞书群（如二维码过期请添加微信 zwl568633995）</em>
+</p>
 ---
 
 ## 📖 文档
