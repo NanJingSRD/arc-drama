@@ -10,7 +10,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-<video src="screenshots/7月13日%20%283%29.mp4" controls width="100%"></video>
+<video src="https://github.com/NanJingSRD/arc-drama/raw/master/screenshots/7月13日%20%283%29.mp4" controls width="100%"></video>
 
 
 ---
